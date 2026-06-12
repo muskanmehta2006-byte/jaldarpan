@@ -126,14 +126,30 @@
                             </select>
                         </div>
                         <div class="input-group">
-                            <label>Alternative: Text/AI Input Analyzer</label>
+                            <label>Water Footprint Finder</label>
                             <input type="text" id="meal-text" placeholder="Type items (e.g., Paneer Butter Masala, Rice, Chapati)">
+                            <button class="analyze-btn" onclick="lookup()">
+                                Analyze Food
+                            </button>
+
                         </div>
                         <div class="input-group">
                             <label>Alternative: Upload Image Asset</label>
-                            <div class="upload-box" onclick="triggerMockUpload()">
+
+                            <input
+                                type="file"
+                                id="food-image"
+                                accept="image/*"
+                                style="display:none"
+                                onchange="handleImageUpload(event)"
+                            >
+
+                            <div class="upload-box"
+                                onclick="document.getElementById('food-image').click()">
                                 <i class="fa-solid fa-cloud-arrow-up"></i>
-                                <span id="upload-status">Drop or Click to Upload Food Image</span>
+                                <span id="upload-status">
+                                    Drop or Click to Upload Food Image
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -194,26 +210,33 @@
                 </div>
 
                 <div class="results-container">
+
+                    <div class="glass-card diagnostic-card">
+                        <div id="result">
+                            <h3>Food Analysis</h3>
+                            <p>Search results will appear here.</p>
+                        </div>
+                    </div>
+
                     <div class="glass-card diagnostic-card">
                         <h3>Today's Water Impact</h3>
+
                         <div class="meter-wrapper">
                             <div class="meter-fluid" id="meter-fill" style="height: 40%;">
                                 <div class="wave-overlay"></div>
                             </div>
-                            <div class="meter-value"><span id="calculated-litres">0</span> <small>Litres</small></div>
-                        </div>
-                        <p class="impact-eval" id="impact-evaluation-text">Awaiting metric submission...</p>
-                    </div>
 
-                    <div class="glass-card ai-suggestions">
-                        <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Hydro-Optimizations</h3>
-                        <div id="ai-suggestions-list">
-                            <div class="suggestion-item">
-                                <div class="sug-icon"><i class="fa-solid fa-circle-info"></i></div>
-                                <p>Submit data inside the structural segments to construct micro-targeted optimization algorithms.</p>
+                            <div class="meter-value">
+                                <span id="calculated-litres">0</span>
+                                <small>Litres</small>
                             </div>
                         </div>
+
+                        <p class="impact-eval" id="impact-evaluation-text">
+                            Awaiting metric submission...
+                        </p>
                     </div>
+
                 </div>
             </div>
         </section>
