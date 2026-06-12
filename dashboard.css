@@ -49,7 +49,7 @@ body {
     transition: var(--transition-smooth);
 }
 .glass-card:hover {
-    border-color: rgba(5, 191, 219, 0.5);
+    border-color: rgb(255, 255, 255);
     box-shadow: 0 12px 40px 0 rgba(5, 191, 219, 0.15);
     transform: translateY(-2px);
 }
@@ -1116,3 +1116,5 @@ input:checked + .slider-round:before { transform: translateX(22px); }
 .logout-btn:hover {
     background-color: #c82333;
 }
+
+
