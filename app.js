@@ -147,6 +147,11 @@ async function handleImageUpload(event) {
 
 // ── DATA LAYER ──
 
+async function logout() {
+    await supabaseClient.auth.signOut();
+    window.location.href = 'auth.html';
+}
+
 async function syncProfile() {
     const p = appState.userProfile;
     await supabaseClient.from('profiles').update({
@@ -197,6 +202,11 @@ async function loadAppState() {
 
     if (profileErr || !profile) {
         console.error('Failed to load profile:', profileErr);
+        return false;
+    }
+
+    if (!profile.onboarding_completed) {
+        window.location.href = 'auth.html';
         return false;
     }
 
