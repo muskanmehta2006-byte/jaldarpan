@@ -33,6 +33,130 @@ const INITIAL_STATE = {
     ]
 };
 
+function renderResult(data, foodName) {
+    document.getElementById("result").innerHTML = `
+        <div class="result-card">
+
+            <div class="result-header">
+                <h2>${data.matched_food.toUpperCase()}</h2>
+                <div class="water-number">
+                    ${data.water_liters}
+                    <span>L</span>
+                </div>
+                <p>${data.unit}</p>
+            </div>
+
+            <div class = "breakdown-grid">
+                <div class="stat-card green">
+                    <h3>${data.breakdown.green}</h3>
+                    <p>Green Water</p>
+                </div>
+
+                <div class="stat-card blue">
+                    <h3>${data.breakdown.blue}</h3>
+                    <p>Blue Water</p>
+                </div>
+
+                <div class="stat-card grey">
+                    <h3>${data.breakdown.grey}</h3>
+                    <p>Grey Water</p>
+                </div>
+            </div>
+
+            <div class="tips-section">
+                <h3>Did You Know?</h3>
+                ${data.tips.map(t => `<p>• ${t}</p>`).join("")}
+            </div>
+
+            <div class="advice-box">
+                ${data.advice}
+            </div>
+
+        </div>
+        `;
+}
+
+async function lookup() {
+    const food = document.getElementById("meal-text").value;
+
+    const response = await fetch("http://localhost:8000/lookup", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            food_name: food
+        })
+    });
+
+    const data = await response.json();
+
+    if (!data.found) {
+        document.getElementById("result").innerHTML =
+            `<p>${data.message}</p>`;
+        return;
+    }
+
+    renderResult(data, food);
+}
+
+// 1. The Core Logic: Handles reading the file and sending it to the API
+async function scan(file) {
+    if (!file) return;
+
+    // 1. Get your existing result element (replace "result-container" with your actual ID)
+    const resultElement = document.getElementById("result");
+    
+    // 2. Put the loading text inside it immediately
+    if (resultElement) {
+        resultElement.innerHTML = "<p class='loading-text'>Please wait, scanning image...</p>";
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = async function(e) {
+        try {
+            const base64 = e.target.result.split(",")[1];
+
+            const response = await fetch("http://localhost:8000/scan", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ image: base64 })
+            });
+
+            const data = await response.json();
+            
+            // 3. Your existing function will automatically overwrite the loading text with the real data
+            renderResult(data, data.identified_as || "Unknown");
+
+        } catch (error) {
+            console.error("Scanning failed:", error);
+            
+            // 4. If it fails, clear the loading message and show an error instead
+            if (resultElement) {
+                resultElement.innerHTML = "<p style='color: red;'>Failed to scan image. Please try again.</p>";
+            }
+        }
+    };
+
+    reader.readAsDataURL(file);
+}
+
+// 2. The Event Handler: Extracts the file and updates the UI status
+async function handleImageUpload(event) {
+    const file = event.target.files[0];
+    
+    if (!file) return;
+
+    document.getElementById("upload-status").textContent = file.name;
+
+    // Reuse the scan function here
+    await scan(file);
+}
+
+
 // State Controller Lifecycle Wrapper
 let appState = JSON.parse(localStorage.getItem('JALKHAATA_STATE')) || INITIAL_STATE;
 
