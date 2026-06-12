@@ -1095,3 +1095,24 @@ input:checked + .slider-round:before { transform: translateX(22px); }
 .stat-card.green { border-left: 3px solid #34d399; }
 .stat-card.blue  { border-left: 3px solid #60a5fa; }
 .stat-card.grey  { border-left: 3px solid #9ca3af; }
+
+
+.logout-btn {
+    margin-top: 1rem;
+    width: 100%;
+
+    background-color: #dc3545;
+    color: white;
+    border: none;
+
+    padding: 14px 20px;
+    font-size: 1.05rem;
+    font-weight: 600;
+
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.logout-btn:hover {
+    background-color: #c82333;
+}
