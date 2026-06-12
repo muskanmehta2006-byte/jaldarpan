@@ -1,36 +1,24 @@
-// Localized Mock Database Layer
-const INITIAL_STATE = {
-    userProfile: {
-        username: "Eco Warrior",
-        avatarSeed: "JalWater",
-        xp: 540,
-        streak: 12,
-        waterSavedMonth: 3200,
-        challengesCompletedCount: 8,
-        friendsInvitedCount: 3,
-        todayWaterLogged: 0
-    },
-    challenges: [
-        { id: "d1", text: "Carry reusable bottle structural unit", type: "daily", xp: 15, completed: true },
-        { id: "d2", text: "Reduce personal shower time duration by 2 mins", type: "daily", xp: 20, completed: false },
-        { id: "d3", text: "Consume one exclusively plant-based nutritional array", type: "daily", xp: 25, completed: false },
-        { id: "w1", text: "Execute exactly 3 shorter shower duration operations", type: "weekly", xp: 60, completed: false },
-        { id: "w2", text: "Ingest 2 certified low-water-footprint meals", type: "weekly", xp: 80, completed: true },
-        { id: "m1", text: "Reduce total monthly composite footprint metric by 10%", type: "monthly", xp: 200, completed: false },
-        { id: "m2", text: "Finalize 20 custom distinct eco-friendly actions", type: "monthly", xp: 250, completed: false }
-    ],
-    friends: [
-        { name: "Muskan", xp: 1200, waterSaved: 4800, level: "Ocean Hero", isVeg: true },
-        { name: "Riya", xp: 1100, waterSaved: 4200, level: "River Guardian", isVeg: true },
-        { name: "Aryan", xp: 900, waterSaved: 3600, level: "Stream Protector", isVeg: false },
-        { name: "Karan", xp: 520, waterSaved: 2100, level: "Water Explorer", isVeg: false }
-    ],
-    badges: [
-        { id: "b1", name: "🌱 Eco Beginner", desc: "Initiated resource optimization logging operations.", requirement: 100 },
-        { id: "b2", name: "💧 Water Saver", desc: "Crossed 500 total Experience points threshold.", requirement: 500 },
-        { id: "b3", name: "🏆 River Guardian", desc: "Crossed 1000 total Experience points threshold.", requirement: 1000 },
-        { id: "b4", name: "🌊 Ocean Hero", desc: "Attained peak structural ecosystem validation standard.", requirement: 2000 }
-    ]
+// ── SUPABASE CLIENT ──
+const SUPABASE_URL = "https://kmdsdrvvpbennilcinxl.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_DpqBWRsDSMR3LLh3xO-djQ_1uU_crgE";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+let currentUserId = null;
+
+// Hardcoded mock friends for leaderboard (real friend system out of scope)
+const MOCK_FRIENDS = [
+    { name: "Muskan", xp: 1200, waterSaved: 4800, level: "Ocean Hero", isVeg: true },
+    { name: "Riya", xp: 1100, waterSaved: 4200, level: "River Guardian", isVeg: true },
+    { name: "Aryan", xp: 900, waterSaved: 3600, level: "Stream Protector", isVeg: false },
+    { name: "Karan", xp: 520, waterSaved: 2100, level: "Water Explorer", isVeg: false }
+];
+
+// Runtime state — populated from Supabase on load
+let appState = {
+    userProfile: null,
+    challenges: [],
+    friends: MOCK_FRIENDS,
+    badges: []
 };
 
 function renderResult(data, foodName) {
@@ -157,11 +145,119 @@ async function handleImageUpload(event) {
 }
 
 
-// State Controller Lifecycle Wrapper
-let appState = JSON.parse(localStorage.getItem('JALKHAATA_STATE')) || INITIAL_STATE;
+// ── DATA LAYER ──
 
-function syncLocalStorage() {
-    localStorage.setItem('JALKHAATA_STATE', JSON.stringify(appState));
+async function syncProfile() {
+    const p = appState.userProfile;
+    await supabaseClient.from('profiles').update({
+        username: p.username,
+        avatar_seed: p.avatarSeed,
+        xp: p.xp,
+        streak: p.streak,
+        water_saved_month: p.waterSavedMonth,
+        challenges_completed_count: p.challengesCompletedCount,
+        friends_invited_count: p.friendsInvitedCount,
+        today_water_logged: p.todayWaterLogged,
+        updated_at: new Date().toISOString()
+    }).eq('id', currentUserId);
+}
+
+async function syncChallenge(challengeId, completed) {
+    await supabaseClient.from('user_challenges').update({
+        completed: completed,
+        completed_at: completed ? new Date().toISOString() : null
+    }).eq('user_id', currentUserId).eq('challenge_id', challengeId);
+}
+
+async function logActivity(logType, litres, xpEarned, metadata = {}) {
+    await supabaseClient.from('activity_logs').insert({
+        user_id: currentUserId,
+        log_type: logType,
+        litres: litres,
+        xp_earned: xpEarned,
+        metadata: metadata
+    });
+}
+
+async function loadAppState() {
+    // 1. Check session
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+        window.location.href = 'auth.html';
+        return false;
+    }
+    currentUserId = session.user.id;
+
+    // 2. Load profile
+    const { data: profile, error: profileErr } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUserId)
+        .single();
+
+    if (profileErr || !profile) {
+        console.error('Failed to load profile:', profileErr);
+        return false;
+    }
+
+    appState.userProfile = {
+        username: profile.username,
+        avatarSeed: profile.avatar_seed,
+        xp: profile.xp,
+        streak: profile.streak,
+        waterSavedMonth: profile.water_saved_month,
+        challengesCompletedCount: profile.challenges_completed_count,
+        friendsInvitedCount: profile.friends_invited_count,
+        todayWaterLogged: profile.today_water_logged
+    };
+
+    // 3. Load master challenges
+    const { data: masterChallenges } = await supabaseClient
+        .from('challenges')
+        .select('*');
+
+    // 4. Load this user's challenge completion status
+    let { data: userChallenges } = await supabaseClient
+        .from('user_challenges')
+        .select('*')
+        .eq('user_id', currentUserId);
+
+    // 5. First-time user: seed user_challenges rows
+    if (!userChallenges || userChallenges.length === 0) {
+        const rows = masterChallenges.map(c => ({
+            user_id: currentUserId,
+            challenge_id: c.id,
+            completed: false
+        }));
+        await supabaseClient.from('user_challenges').insert(rows);
+        userChallenges = rows.map(r => ({ ...r, completed_at: null }));
+    }
+
+    // 6. Merge master challenges with completion status
+    const completionMap = {};
+    userChallenges.forEach(uc => { completionMap[uc.challenge_id] = uc.completed; });
+
+    appState.challenges = masterChallenges.map(c => ({
+        id: c.id,
+        text: c.text,
+        type: c.type,
+        xp: c.xp,
+        completed: !!completionMap[c.id]
+    }));
+
+    // 7. Load master badges
+    const { data: masterBadges } = await supabaseClient
+        .from('badges')
+        .select('*');
+
+    appState.badges = (masterBadges || []).map(b => ({
+        id: b.id,
+        name: b.name,
+        desc: b.description,
+        requirement: b.requirement
+    }));
+
+    return true;
 }
 
 // Single Page Nav Engine
@@ -395,29 +491,31 @@ function renderProfileHeatmaps() {
 }
 
 // User Actions Handlers
-function completeQuestDirectly(id) {
+async function completeQuestDirectly(id) {
     const quest = appState.challenges.find(c => c.id === id);
     if(quest && !quest.completed) {
         quest.completed = true;
         appState.userProfile.xp += quest.xp;
         appState.userProfile.challengesCompletedCount++;
-        syncLocalStorage();
+        await syncProfile();
+        await syncChallenge(id, true);
         updateUIRefreshes();
         alert(`Quest verified successfully! Earned +${quest.xp} operational experience points.`);
     } else if(quest && quest.completed) {
-        // Toggle optimization configuration layer states
         quest.completed = false;
         appState.userProfile.xp -= quest.xp;
         appState.userProfile.challengesCompletedCount--;
-        syncLocalStorage();
+        await syncProfile();
+        await syncChallenge(id, false);
         updateUIRefreshes();
     }
 }
 
-function quickLog(amount, title) {
+async function quickLog(amount, title) {
     appState.userProfile.todayWaterLogged += amount;
     appState.userProfile.xp += 10; // Fixed incentive base configuration values
-    syncLocalStorage();
+    await syncProfile();
+    await logActivity('quick_log', amount, 10, { title: title });
     updateUIRefreshes();
     alert(`Interaction matrix initialized: ${title}. Allocated +10 XP baseline standard.`);
 }
@@ -436,7 +534,7 @@ function triggerMockUpload() {
 }
 
 // Core Analytical Calculations Logic
-function calculateFootprint() {
+async function calculateFootprint() {
     const mealVal = document.getElementById('meal-select').value;
     let mealLitres = 400; // default base vector value array allocation mappings
     if(mealVal === 'dairy') mealLitres = 1200;
@@ -506,7 +604,8 @@ function calculateFootprint() {
     // Update local variables storage states parameters maps
     appState.userProfile.todayWaterLogged = totalImpactCalculated;
     appState.userProfile.xp += 30; // Award transactional execution points
-    syncLocalStorage();
+    await syncProfile();
+    await logActivity('footprint_calc', totalImpactCalculated, 30, { meal: mealVal });
     updateUIRefreshes();
 }
 
@@ -517,14 +616,14 @@ function openInviteModal() {
 function closeInviteModal() {
     document.getElementById('invite-modal').classList.remove('active');
 }
-function copyInviteCode() {
+async function copyInviteCode() {
     const field = document.getElementById('invite-code-field');
     field.select();
     field.setSelectionRange(0, 99999);
     navigator.clipboard.writeText(field.value);
     alert("Invite token hash array mapped to device clipboard layers: " + field.value);
     appState.userProfile.friendsInvitedCount++;
-    syncLocalStorage();
+    await syncProfile();
     updateUIRefreshes();
     closeInviteModal();
 }
@@ -539,14 +638,14 @@ function toggleAccordion(element) {
 }
 
 // Profile Sync Configurations Layer updates
-function updateProfileSettings() {
+async function updateProfileSettings() {
     const newName = document.getElementById('settings-username').value;
     const newSeed = document.getElementById('settings-avatar-seed').value;
     
     if(newName.trim()) appState.userProfile.username = newName;
     if(newSeed.trim()) appState.userProfile.avatarSeed = newSeed;
 
-    syncLocalStorage();
+    await syncProfile();
     updateUIRefreshes();
 }
 
@@ -561,7 +660,10 @@ function toggleThemeOverride() {
 }
 
 // Initialization Entry Vector
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+    const ok = await loadAppState();
+    if (!ok) return; // redirected to auth.html or load failed
+
     updateUIRefreshes();
     
     // Set standard periodic carousel data update intervals
