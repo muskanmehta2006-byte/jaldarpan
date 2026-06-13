@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JalKhaata - Track Every Drop. Save Every Drop.</title>
+    <title>JalDarpan - Track Every Drop. Save Every Drop.</title>
     <link rel="stylesheet" href="dashboard.css">
-    <link rel="stylesheet" href="knowledgehub.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 
     <nav class="navbar">
-        <div class="nav-logo" onclick="showPage('home')">💧 JalKhaata</div>
+        <div class="nav-logo" onclick="showPage('home')">💧 JalDarpan</div>
         <ul class="nav-menu">
             <li class="nav-item active" onclick="showPage('home')"><i class="fa-solid fa-chart-pie"></i> Home</li>
             <li class="nav-item" onclick="showPage('log')"><i class="fa-solid fa-faucet-drip"></i> Log Activity</li>
             <li class="nav-item" onclick="showPage('challenges')"><i class="fa-solid fa-trophy"></i> Challenges</li>
             <li class="nav-item" onclick="showPage('leaderboard')"><i class="fa-solid fa-ranking-star"></i> Leaderboard</li>
+            <li class="nav-item" onclick="showPage('events')"><i class="fa-solid fa-calendar-days"></i> Events</li>
             <li class="nav-item" onclick="showPage('knowledge')"><i class="fa-solid fa-book-open"></i> Knowledge Hub</li>
             <li class="nav-item" onclick="showPage('profile')"><i class="fa-solid fa-user"></i> Profile</li>
         </ul>
@@ -304,6 +303,192 @@
             </div>
         </section>
 
+        <section id="page-events" class="app-page">
+            <div class="page-header">
+                <h2><i class="fa-solid fa-hands-holding-droplet"></i> Community Drives & Events</h2>
+                <p>Discover seminars, river cleanups, plantation drives & workshops near you — or host one yourself.</p>
+            </div>
+
+            <div class="events-toolbar">
+                <div class="event-filters" id="event-filters">
+                    <button class="toggle-btn active" data-filter="all" onclick="filterEvents('all', this)">All</button>
+                    <button class="toggle-btn" data-filter="cleanup" onclick="filterEvents('cleanup', this)">River Cleanups</button>
+                    <button class="toggle-btn" data-filter="seminar" onclick="filterEvents('seminar', this)">Seminars</button>
+                    <button class="toggle-btn" data-filter="workshop" onclick="filterEvents('workshop', this)">Workshops</button>
+                    <button class="toggle-btn" data-filter="plantation" onclick="filterEvents('plantation', this)">Plantation</button>
+                </div>
+                <div class="event-toolbar-actions">
+                    <label class="admin-toggle">
+                        <input type="checkbox" id="admin-mode-toggle" onchange="toggleAdminMode()">
+                        <span><i class="fa-solid fa-user-shield"></i> Admin View</span>
+                    </label>
+                    <button class="btn btn-primary" onclick="openEventModal()"><i class="fa-solid fa-plus"></i> Propose an Event</button>
+                </div>
+            </div>
+
+            <div class="glass-card admin-queue-card" id="admin-queue-card">
+                <h3><i class="fa-solid fa-clipboard-check"></i> Pending Approval Queue</h3>
+                <p class="admin-queue-subtitle">Review events submitted by users and club members before they go live on the Events page.</p>
+                <div class="pending-events-list" id="pending-events-list">
+
+                    <div class="pending-event-row" id="pending-evt-1">
+                        <div class="pending-event-info">
+                            <h4><i class="fa-solid fa-broom"></i> Hostel Block D — Tap Leak Hunt & Awareness Walk</h4>
+                            <p>Submitted by <strong>Muskan (Student, ECE Club)</strong> · Type: Awareness Drive · Proposed Date: 25 June 2026 · Location: Hostel Block D Corridor</p>
+                        </div>
+                        <div class="pending-event-actions">
+                            <button class="btn btn-secondary btn-approve" onclick="approveEvent('pending-evt-1', this)"><i class="fa-solid fa-check"></i> Approve</button>
+                            <button class="btn btn-secondary btn-reject" onclick="rejectEvent('pending-evt-1')"><i class="fa-solid fa-xmark"></i> Reject</button>
+                        </div>
+                    </div>
+
+                    <div class="pending-event-row" id="pending-evt-2">
+                        <div class="pending-event-info">
+                            <h4><i class="fa-solid fa-flask"></i> River Walk & Water Quality Testing</h4>
+                            <p>Submitted by <strong>Aarav Patel (Student)</strong> · Type: Seminar · Proposed Date: 1 July 2026 · Location: Tapi Riverfront, Surat</p>
+                        </div>
+                        <div class="pending-event-actions">
+                            <button class="btn btn-secondary btn-approve" onclick="approveEvent('pending-evt-2', this)"><i class="fa-solid fa-check"></i> Approve</button>
+                            <button class="btn btn-secondary btn-reject" onclick="rejectEvent('pending-evt-2')"><i class="fa-solid fa-xmark"></i> Reject</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="events-grid" id="events-grid">
+
+                <div class="glass-card event-card" data-type="cleanup">
+                    <div class="event-cover type-cleanup">
+                        <i class="fa-solid fa-water"></i>
+                        <span class="event-type-badge">River Cleanup</span>
+                        <span class="event-status-badge approved">Approved</span>
+                    </div>
+                    <div class="event-body">
+                        <h3>Tapi Riverfront Cleanup Drive</h3>
+                        <p class="event-desc">Join 100+ volunteers to clear plastic waste along the Tapi riverbanks and learn how urban rivers connect to your daily water footprint.</p>
+                        <div class="event-meta">
+                            <span><i class="fa-regular fa-calendar"></i> Sat, 22 June 2026 · 6:30 AM</span>
+                            <span><i class="fa-solid fa-location-dot"></i> Tapi Riverfront, Surat</span>
+                        </div>
+                        <div class="event-organizer">
+                            <span class="organizer-avatar"><i class="fa-solid fa-shield-halved"></i></span>
+                            Organized by Jal Mitra NGO · Verified by Admin
+                        </div>
+                        <div class="event-footer">
+                            <span class="event-capacity"><strong>64</strong> / 100 registered</span>
+                            <button class="btn btn-primary btn-register" onclick="registerEvent(this)">Register</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card event-card" data-type="seminar">
+                    <div class="event-cover type-seminar">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                        <span class="event-type-badge">Seminar</span>
+                        <span class="event-status-badge approved">Approved</span>
+                    </div>
+                    <div class="event-body">
+                        <h3>Groundwater Recharge 101</h3>
+                        <p class="event-desc">A beginner-friendly session on aquifer recharge structures, rooftop harvesting basics, and why Gujarat's groundwater table matters to you.</p>
+                        <div class="event-meta">
+                            <span><i class="fa-regular fa-calendar"></i> Wed, 18 June 2026 · 4:00 PM</span>
+                            <span><i class="fa-solid fa-location-dot"></i> Auditorium Block C + Live Stream</span>
+                        </div>
+                        <div class="event-organizer">
+                            <span class="organizer-avatar"><i class="fa-solid fa-users"></i></span>
+                            Organized by EcoTech Club · Verified by Admin
+                        </div>
+                        <div class="event-footer">
+                            <span class="event-capacity"><strong>88</strong> / 150 registered</span>
+                            <button class="btn btn-primary btn-register registered" onclick="registerEvent(this)"><i class="fa-solid fa-check"></i> Registered</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card event-card" data-type="workshop">
+                    <div class="event-cover type-workshop">
+                        <i class="fa-solid fa-screwdriver-wrench"></i>
+                        <span class="event-type-badge">Workshop</span>
+                        <span class="event-status-badge approved">Approved</span>
+                    </div>
+                    <div class="event-body">
+                        <h3>DIY Rainwater Harvesting Build</h3>
+                        <p class="event-desc">Hands-on workshop building a low-cost rooftop rainwater harvesting model you can replicate at home or in your hostel.</p>
+                        <div class="event-meta">
+                            <span><i class="fa-regular fa-calendar"></i> Sun, 5 July 2026 · 10:00 AM</span>
+                            <span><i class="fa-solid fa-location-dot"></i> Community Hall, Adajan</span>
+                        </div>
+                        <div class="event-organizer">
+                            <span class="organizer-avatar"><i class="fa-solid fa-shield-halved"></i></span>
+                            Organized by Surat Municipal Corporation
+                        </div>
+                        <div class="event-footer">
+                            <span class="event-capacity"><strong>32</strong> / 60 registered</span>
+                            <button class="btn btn-primary btn-register" onclick="registerEvent(this)">Register</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card event-card" data-type="plantation">
+                    <div class="event-cover type-plantation">
+                        <i class="fa-solid fa-seedling"></i>
+                        <span class="event-type-badge">Plantation</span>
+                        <span class="event-status-badge approved">Approved</span>
+                    </div>
+                    <div class="event-body">
+                        <h3>Riverside Sapling Plantation Drive</h3>
+                        <p class="event-desc">Plant native saplings along the riverbank to reduce soil erosion and improve water retention across the watershed.</p>
+                        <div class="event-meta">
+                            <span><i class="fa-regular fa-calendar"></i> Sat, 28 June 2026 · 7:00 AM</span>
+                            <span><i class="fa-solid fa-location-dot"></i> Sarthana Nature Park</span>
+                        </div>
+                        <div class="event-organizer">
+                            <span class="organizer-avatar"><i class="fa-solid fa-users"></i></span>
+                            Organized by Green Hands Collective
+                        </div>
+                        <div class="event-footer">
+                            <span class="event-capacity"><strong>41</strong> / 80 registered</span>
+                            <button class="btn btn-primary btn-register" onclick="registerEvent(this)">Register</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card event-card" data-type="seminar">
+                    <div class="event-cover type-seminar">
+                        <i class="fa-solid fa-industry"></i>
+                        <span class="event-type-badge">Seminar</span>
+                        <span class="event-status-badge approved">Approved</span>
+                    </div>
+                    <div class="event-body">
+                        <h3>Industrial Water Reuse: Open Talk</h3>
+                        <p class="event-desc">Engineers from local textile units discuss greywater recycling systems and the embedded water costs hidden in manufacturing.</p>
+                        <div class="event-meta">
+                            <span><i class="fa-regular fa-calendar"></i> Fri, 3 July 2026 · 5:30 PM</span>
+                            <span><i class="fa-solid fa-location-dot"></i> Online (Google Meet)</span>
+                        </div>
+                        <div class="event-organizer">
+                            <span class="organizer-avatar"><i class="fa-solid fa-shield-halved"></i></span>
+                            Organized by Dept. of ECE Sustainability Cell
+                        </div>
+                        <div class="event-footer">
+                            <span class="event-capacity"><strong>120</strong> / 200 registered</span>
+                            <button class="btn btn-primary btn-register" onclick="registerEvent(this)">Register</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card event-card add-event-card" onclick="openEventModal()">
+                    <div class="add-event-inner">
+                        <i class="fa-solid fa-circle-plus"></i>
+                        <h3>Host Your Own Drive</h3>
+                        <p>Running a seminar, cleanup, or plantation drive? Submit it for admin approval and get it listed here.</p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
         <section id="page-knowledge" class="app-page">
             <div class="page-header">
                 <h2><i class="fa-solid fa-book-open"></i> Knowledge Infrastructure</h2>
@@ -311,19 +496,19 @@
             </div>
 
             <div class="knowledge-grid">
-                <div class="glass-card-knowledge-article">
+                <div class="glass-card knowledge-article">
                     <div class="article-icon"><i class="fa-solid fa-earth-americas"></i></div>
                     <h3>What is a Water Footprint?</h3>
                     <p>The total volume of freshwater used to produce the goods and services consumed by an individual or community. It factors internal usage vectors alongside systemic tracking chains.</p>
                 </div>
 
-                <div class="glass-card-knowledge-article">
+                <div class="glass-card knowledge-article">
                     <div class="article-icon"><i class="fa-solid fa-droplet"></i></div>
                     <h3>Why Should We Care?</h3>
                     <p>Less than 1% of the world's freshwater resources are accessible for direct societal deployment. Rapid scaling populations threaten localized aquifer recovery cycles.</p>
                 </div>
 
-                <div class="glass-card-knowledge-article">
+                <div class="glass-card knowledge-article">
                     <div class="article-icon"><i class="fa-solid fa-shrimp"></i></div>
                     <h3>The Hidden Water Construct</h3>
                     <p>Virtually all structural consumer products house extensive supply matrices. An iPhone, for example, absorbs thousands of liters of embedded water via chemical microchip configurations before retail shipment.</p>
@@ -350,8 +535,6 @@
                      <p>Grey water is typically less contaminated than black water and can be treated for reuse in irrigation and other non-potable applications.</p>
                 </div>
             </div>
-
-            
 
             <h3 class="section-divider-title">Embedded Resource Expenditures</h3>
             <div class="accordion-container">
@@ -445,7 +628,6 @@
                             <span class="slider-round"></span>
                         </label>
                     </div>
-                    <button class="logout-btn" style="margin-top:1rem;width:100%;" onclick="logout()">Log out</button>
                 </div>
             </div>
         </section>
@@ -460,11 +642,65 @@
             </div>
             <p>Distribute this localized invitation validation array code token to pull peer profiles into your private leaderboard dashboard structure.</p>
             <div class="invite-code-box">
-                <input type="text" id="invite-code-field" value="JALKHAATA-4567" readonly>
+                <input type="text" id="invite-code-field" value="JALDARPAN-4567" readonly>
                 <button class="btn btn-primary" onclick="copyInviteCode()"><i class="fa-solid fa-copy"></i> Copy</button>
             </div>
         </div>
     </div>
+
+    <div class="modal-overlay" id="event-modal">
+        <div class="glass-card modal-content large">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-hands-holding-droplet"></i> Propose a Water Conservation Event</h3>
+                <button class="close-modal-btn" onclick="closeEventModal()">&times;</button>
+            </div>
+            <form class="event-form" id="event-form" onsubmit="submitEventProposal(event)">
+                <div class="input-group">
+                    <label for="event-title">Event Title</label>
+                    <input type="text" id="event-title" placeholder="e.g. Hostel Tap Leak Hunt" required>
+                </div>
+                <div class="input-row">
+                    <div class="input-group">
+                        <label for="event-type">Event Type</label>
+                        <select id="event-type">
+                            <option value="cleanup">River / Lake Cleanup</option>
+                            <option value="seminar">Seminar / Talk</option>
+                            <option value="workshop">Workshop</option>
+                            <option value="plantation">Plantation Drive</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="event-date">Date & Time</label>
+                        <input type="text" id="event-date" placeholder="e.g. 25 June 2026, 6:00 PM" required>
+                    </div>
+                </div>
+                <div class="input-row">
+                    <div class="input-group">
+                        <label for="event-location">Location</label>
+                        <input type="text" id="event-location" placeholder="e.g. Hostel Block D, Campus" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="event-capacity">Expected Capacity</label>
+                        <input type="text" id="event-capacity" placeholder="e.g. 50">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="event-description">Description</label>
+                    <textarea id="event-description" placeholder="What will participants do? Why does it matter?" required></textarea>
+                </div>
+                <div class="input-group">
+                    <label for="event-organizer">Organizer Name</label>
+                    <input type="text" id="event-organizer" placeholder="Your name / club / NGO name" required>
+                </div>
+                <div class="form-helper-note">
+                    <i class="fa-solid fa-circle-info"></i>
+                    Submitted events are sent to the Pending Approval Queue. An admin will review and publish your event to the Community Drives page before it becomes visible and open for registration.
+                </div>
+                <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-paper-plane"></i> Submit for Approval</button>
+            </form>
+        </div>
+    </div>
+
 
     <footer class="wave-footer">
         <div class="waves-container">
@@ -483,13 +719,14 @@
         <div class="footer-content">
             <p class="footer-tag">Every Drop Counts.</p>
             <div class="footer-links">
-                <a href="#" onclick="alert('JalKhaata tracking platform infrastructure active node.')">About Matrix</a>
+                <a href="#" onclick="alert('JalDarpan tracking platform infrastructure active node.')">About Matrix</a>
                 <a href="#" onclick="alert('Data cached locally on user storage layers.')">Privacy Architecture</a>
-                <a href="#" onclick="alert('Contact endpoint: support@jalkhaata.eco')">Node Contact</a>
+                <a href="#" onclick="alert('Contact endpoint: support@jaldarpan.eco')">Node Contact</a>
             </div>
         </div>
     </footer>
 
     <script src="app.js"></script>
+    <script src="events.js"></script>
 </body>
 </html>
