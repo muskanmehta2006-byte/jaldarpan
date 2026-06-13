@@ -18,7 +18,8 @@ let appState = {
     userProfile: null,
     challenges: [],
     friends: MOCK_FRIENDS,
-    badges: []
+    badges: [],
+    events: []
 };
 
 function renderResult(data, foodName) {
@@ -26,7 +27,7 @@ function renderResult(data, foodName) {
         <div class="result-card">
 
             <div class="result-header">
-                <h2>${data.matched_food.toUpperCase()}</h2>
+                <h2>${data.display_name.toUpperCase()}</h2>
                 <div class="water-number">
                     ${data.water_liters}
                     <span>L</span>
@@ -145,6 +146,110 @@ async function handleImageUpload(event) {
 }
 
 
+// ── EVENTS ──
+
+const EVENT_TYPE_META = {
+    cleanup:    { label: 'River Cleanup', icon: 'fa-solid fa-water',             coverClass: 'type-cleanup' },
+    seminar:    { label: 'Seminar',       icon: 'fa-solid fa-chalkboard-user',   coverClass: 'type-seminar' },
+    workshop:   { label: 'Workshop',      icon: 'fa-solid fa-screwdriver-wrench', coverClass: 'type-workshop' },
+    plantation: { label: 'Plantation',    icon: 'fa-solid fa-seedling',          coverClass: 'type-plantation' }
+};
+
+function escapeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+}
+
+function renderEvents() {
+    const grid = document.getElementById('events-grid');
+    if (!grid) return;
+
+    // Remove previously rendered cards (keep the "Host Your Own Drive" add-card)
+    grid.querySelectorAll('.event-card:not(.add-event-card)').forEach(el => el.remove());
+
+    const addCard = grid.querySelector('.add-event-card');
+
+    appState.events.forEach(ev => {
+        const meta = EVENT_TYPE_META[ev.type] || EVENT_TYPE_META.seminar;
+        const card = document.createElement('div');
+        card.className = 'glass-card event-card';
+        card.dataset.type = ev.type;
+
+        const capacityHTML = ev.capacity
+            ? `<strong>${ev.registeredCount}</strong> / ${ev.capacity} registered`
+            : `<strong>${ev.registeredCount}</strong> registered`;
+
+        const btnHTML = ev.isRegistered
+            ? `<button class="btn btn-primary btn-register registered" onclick="registerEvent('${ev.id}', this)"><i class="fa-solid fa-check"></i> Registered</button>`
+            : `<button class="btn btn-primary btn-register" onclick="registerEvent('${ev.id}', this)">Register</button>`;
+
+        card.innerHTML = `
+            <div class="event-cover ${meta.coverClass}">
+                <i class="${meta.icon}"></i>
+                <span class="event-type-badge">${meta.label}</span>
+                <span class="event-status-badge approved">Approved</span>
+            </div>
+            <div class="event-body">
+                <h3>${escapeHTML(ev.title)}</h3>
+                <p class="event-desc">${escapeHTML(ev.description)}</p>
+                <div class="event-meta">
+                    <span><i class="fa-regular fa-calendar"></i> ${escapeHTML(ev.eventDate)}</span>
+                    <span><i class="fa-solid fa-location-dot"></i> ${escapeHTML(ev.location)}</span>
+                </div>
+                <div class="event-organizer">
+                    <span class="organizer-avatar"><i class="${ev.organizerIcon || 'fa-solid fa-users'}"></i></span>
+                    Organized by ${escapeHTML(ev.organizerName)}
+                </div>
+                <div class="event-footer">
+                    <span class="event-capacity">${capacityHTML}</span>
+                    ${btnHTML}
+                </div>
+            </div>
+        `;
+
+        if (addCard) {
+            grid.insertBefore(card, addCard);
+        } else {
+            grid.appendChild(card);
+        }
+    });
+
+    // Re-apply active filter, if any
+    const activeFilter = document.querySelector('#event-filters .toggle-btn.active');
+    if (activeFilter && typeof filterEvents === 'function') {
+        filterEvents(activeFilter.dataset.filter, activeFilter);
+    }
+}
+
+async function registerEvent(eventId, btn) {
+    const ev = appState.events.find(e => e.id === eventId);
+    if (!ev) return;
+
+    if (ev.isRegistered) {
+        // Cancel registration
+        await supabaseClient
+            .from('event_registrations')
+            .delete()
+            .eq('event_id', eventId)
+            .eq('user_id', currentUserId);
+
+        ev.isRegistered = false;
+        ev.registeredCount = Math.max(0, ev.registeredCount - 1);
+        showToast('Registration cancelled.', 'fa-solid fa-circle-info');
+    } else {
+        await supabaseClient
+            .from('event_registrations')
+            .insert({ event_id: eventId, user_id: currentUserId });
+
+        ev.isRegistered = true;
+        ev.registeredCount += 1;
+        showToast(`You're registered for "${ev.title}"!`, 'fa-solid fa-circle-check', true);
+    }
+
+    renderEvents();
+}
+
 // ── DATA LAYER ──
 
 async function logout() {
@@ -163,6 +268,7 @@ async function syncProfile() {
         challenges_completed_count: p.challengesCompletedCount,
         friends_invited_count: p.friendsInvitedCount,
         today_water_logged: p.todayWaterLogged,
+        last_active_date: p.lastActiveDate,
         updated_at: new Date().toISOString()
     }).eq('id', currentUserId);
 }
@@ -182,6 +288,92 @@ async function logActivity(logType, litres, xpEarned, metadata = {}) {
         xp_earned: xpEarned,
         metadata: metadata
     });
+}
+
+// ── STREAK ──
+
+function bumpStreak() {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const last = appState.userProfile.lastActiveDate;
+
+    if (last === todayStr) return; // already counted today
+
+    if (last) {
+        const lastDate = new Date(last + 'T00:00:00Z');
+        const today = new Date(todayStr + 'T00:00:00Z');
+        const diffDays = Math.round((today - lastDate) / 86400000);
+
+        if (diffDays === 1) {
+            appState.userProfile.streak += 1; // consecutive day
+        } else {
+            appState.userProfile.streak = 1; // gap — restart
+        }
+    } else {
+        appState.userProfile.streak = 1; // first ever activity
+    }
+
+    appState.userProfile.lastActiveDate = todayStr;
+}
+
+// ── PERIODIC RESETS ──
+
+function getISOWeekKey(d) {
+    // Returns "YYYY-WW" for ISO week comparison
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = (date.getUTCDay() + 6) % 7; // Mon=0..Sun=6
+    date.setUTCDate(date.getUTCDate() - dayNum + 3);
+    const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+    const week = 1 + Math.round(((date - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+    return `${date.getUTCFullYear()}-${week}`;
+}
+
+async function applyPeriodicResets(profile) {
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
+    const profileUpdates = {};
+    let resetTypes = [];
+
+    // DAILY
+    if (profile.last_daily_reset !== todayStr) {
+        resetTypes.push('daily');
+        profileUpdates.today_water_logged = 0;
+        profileUpdates.last_daily_reset = todayStr;
+        appState.userProfile.todayWaterLogged = 0;
+    }
+
+    // WEEKLY (ISO week comparison)
+    const lastWeekDate = new Date(profile.last_weekly_reset + 'T00:00:00Z');
+    if (getISOWeekKey(lastWeekDate) !== getISOWeekKey(today)) {
+        resetTypes.push('weekly');
+        profileUpdates.last_weekly_reset = todayStr;
+    }
+
+    // MONTHLY
+    const lastMonthDate = new Date(profile.last_monthly_reset + 'T00:00:00Z');
+    if (lastMonthDate.getUTCFullYear() !== today.getFullYear() || lastMonthDate.getUTCMonth() !== today.getMonth()) {
+        resetTypes.push('monthly');
+        profileUpdates.last_monthly_reset = todayStr;
+    }
+
+    if (resetTypes.length === 0) return;
+
+    // Reset matching user_challenges rows
+    const { data: matchingChallenges } = await supabaseClient
+        .from('challenges')
+        .select('id')
+        .in('type', resetTypes);
+
+    if (matchingChallenges && matchingChallenges.length > 0) {
+        const ids = matchingChallenges.map(c => c.id);
+        await supabaseClient
+            .from('user_challenges')
+            .update({ completed: false, completed_at: null })
+            .eq('user_id', currentUserId)
+            .in('challenge_id', ids);
+    }
+
+    // Persist profile reset markers
+    await supabaseClient.from('profiles').update(profileUpdates).eq('id', currentUserId);
 }
 
 async function loadAppState() {
@@ -218,8 +410,12 @@ async function loadAppState() {
         waterSavedMonth: profile.water_saved_month,
         challengesCompletedCount: profile.challenges_completed_count,
         friendsInvitedCount: profile.friends_invited_count,
-        todayWaterLogged: profile.today_water_logged
+        todayWaterLogged: profile.today_water_logged,
+        lastActiveDate: profile.last_active_date
     };
+
+    // 2b. Periodic resets (daily / weekly / monthly)
+    await applyPeriodicResets(profile);
 
     // 3. Load master challenges
     const { data: masterChallenges } = await supabaseClient
@@ -265,6 +461,38 @@ async function loadAppState() {
         name: b.name,
         desc: b.description,
         requirement: b.requirement
+    }));
+
+    // 8. Load approved events + registration counts + this user's registrations
+    const { data: events } = await supabaseClient
+        .from('events')
+        .select('*')
+        .eq('status', 'approved')
+        .order('created_at', { ascending: true });
+
+    const { data: registrations } = await supabaseClient
+        .from('event_registrations')
+        .select('event_id, user_id');
+
+    const regCountMap = {};
+    const userRegSet = new Set();
+    (registrations || []).forEach(r => {
+        regCountMap[r.event_id] = (regCountMap[r.event_id] || 0) + 1;
+        if (r.user_id === currentUserId) userRegSet.add(r.event_id);
+    });
+
+    appState.events = (events || []).map(ev => ({
+        id: ev.id,
+        title: ev.title,
+        type: ev.type,
+        description: ev.description,
+        eventDate: ev.event_date,
+        location: ev.location,
+        organizerName: ev.organizer_name,
+        organizerIcon: ev.organizer_icon,
+        capacity: ev.capacity,
+        registeredCount: regCountMap[ev.id] || 0,
+        isRegistered: userRegSet.has(ev.id)
     }));
 
     return true;
@@ -524,6 +752,7 @@ async function completeQuestDirectly(id) {
 async function quickLog(amount, title) {
     appState.userProfile.todayWaterLogged += amount;
     appState.userProfile.xp += 10; // Fixed incentive base configuration values
+    bumpStreak();
     await syncProfile();
     await logActivity('quick_log', amount, 10, { title: title });
     updateUIRefreshes();
@@ -614,6 +843,7 @@ async function calculateFootprint() {
     // Update local variables storage states parameters maps
     appState.userProfile.todayWaterLogged = totalImpactCalculated;
     appState.userProfile.xp += 30; // Award transactional execution points
+    bumpStreak();
     await syncProfile();
     await logActivity('footprint_calc', totalImpactCalculated, 30, { meal: mealVal });
     updateUIRefreshes();
@@ -675,6 +905,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (!ok) return; // redirected to auth.html or load failed
 
     updateUIRefreshes();
+    renderEvents();
     
     // Set standard periodic carousel data update intervals
     const facts = [
