@@ -42,25 +42,7 @@ function filterEvents(type, btn) {
 
 
 // ---- Registration -----------------------------------------------
-function registerEvent(btn) {
-    const card = btn.closest('.event-card');
-    const capacityEl = card.querySelector('.event-capacity strong');
-    let count = parseInt(capacityEl.textContent, 10) || 0;
-
-    if (btn.classList.contains('registered')) {
-        // Cancel registration
-        btn.classList.remove('registered');
-        btn.innerHTML = 'Register';
-        capacityEl.textContent = Math.max(0, count - 1);
-        showToast('Registration cancelled.', 'fa-solid fa-circle-info');
-    } else {
-        btn.classList.add('registered');
-        btn.innerHTML = '<i class="fa-solid fa-check"></i> Registered';
-        capacityEl.textContent = count + 1;
-        const title = card.querySelector('h3').textContent;
-        showToast(`You're registered for "${title}"!`, 'fa-solid fa-circle-check', true);
-    }
-}
+// registerEvent(eventId, btn) is now defined in app.js (Supabase-backed).
 
 // ---- Propose Event modal ----------------------------------------
 function openEventModal() {
@@ -78,12 +60,7 @@ document.addEventListener('click', function (e) {
     }
 });
 
-const EVENT_TYPE_META = {
-    cleanup:    { label: 'River Cleanup', icon: 'fa-solid fa-water',             coverClass: 'type-cleanup' },
-    seminar:    { label: 'Seminar',       icon: 'fa-solid fa-chalkboard-user',   coverClass: 'type-seminar' },
-    workshop:   { label: 'Workshop',      icon: 'fa-solid fa-screwdriver-wrench', coverClass: 'type-workshop' },
-    plantation: { label: 'Plantation',    icon: 'fa-solid fa-seedling',          coverClass: 'type-plantation' }
-};
+// EVENT_TYPE_META is defined in app.js (shared with renderEvents).
 
 let pendingEventCounter = 3; // pending-evt-1 and pending-evt-2 already exist in markup
 
@@ -222,11 +199,7 @@ function fadeOutAndRemove(row) {
 }
 
 // ---- Helpers -------------------------------------------------------
-function escapeHTML(str) {
-    const div = document.createElement('div');
-    div.textContent = str || '';
-    return div.innerHTML;
-}
+// escapeHTML(str) is now defined in app.js (shared with renderEvents).
 
 let toastTimeout;
 function showToast(message, icon, success) {
