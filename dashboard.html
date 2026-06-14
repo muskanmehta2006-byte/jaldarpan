@@ -119,42 +119,46 @@
                 <div class="form-container">
                     <div class="glass-card form-section">
                         <h4><i class="fa-solid fa-utensils"></i> Section A — Meals</h4>
-                        <div class="input-group">
-                            <label for="meal-select">Select Primary Meal Content Type</label>
-                            <select id="meal-select">
-                                <option value="plant">Standard Plant-Based Meal (Rice, Lentils, Veg) (~400L)</option>
-                                <option value="dairy">Dairy Intensive Meal (Paneer, Cheese, Butter) (~1200L)</option>
-                                <option value="poultry">Poultry/Egg Component Meal (~900L)</option>
-                                <option value="meat">Red Meat Component Meal (~2500L)</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label>Water Footprint Finder</label>
-                            <input type="text" id="meal-text" placeholder="Type items (e.g., Paneer Butter Masala, Rice, Chapati)">
-                            <button class="analyze-btn" onclick="lookup()">
-                                Analyze Food
+
+                        <!-- Toggle tabs -->
+                        <div class="meal-mode-toggle">
+                            <button class="meal-mode-btn active" id="btn-mode-text" onclick="switchMealMode('text')">
+                                <i class="fa-solid fa-pen-to-square"></i> Enter Manually
                             </button>
-
+                            <button class="meal-mode-btn" id="btn-mode-image" onclick="switchMealMode('image')">
+                                <i class="fa-solid fa-camera"></i> Upload Image
+                            </button>
                         </div>
-                        <div class="input-group">
-                            <label>Alternative: Upload Image Asset</label>
 
-                            <input
-                                type="file"
-                                id="food-image"
-                                accept="image/*"
-                                style="display:none"
-                                onchange="handleImageUpload(event)"
-                            >
-
-                            <div class="upload-box"
-                                onclick="document.getElementById('food-image').click()">
-                                <i class="fa-solid fa-cloud-arrow-up"></i>
-                                <span id="upload-status">
-                                    Drop or Click to Upload Food Image
-                                </span>
+                        <!-- TEXT MODE -->
+                        <div id="meal-mode-text">
+                            <div id="meal-items-list">
+                                <div class="meal-item-row">
+                                    <input type="text" placeholder="Food item (e.g. Chapati)" class="meal-item-name"/>
+                                    <input type="text" placeholder="Qty (e.g. 2 pieces)" class="meal-item-qty"/>
+                                    <button class="meal-row-remove" onclick="removeMealRow(this)" title="Remove">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
                             </div>
+                            <button class="btn-add-item" onclick="addMealRow()">
+                                <i class="fa-solid fa-plus"></i> Add item
+                            </button>
                         </div>
+
+                        <!-- IMAGE MODE -->
+                        <div id="meal-mode-image" style="display:none">
+                            <input type="file" id="food-image" accept="image/*" style="display:none" onchange="handleMealImageUpload(event)"/>
+                            <div class="upload-box" onclick="document.getElementById('food-image').click()">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                <span id="upload-status">Drop or Click to Upload Meal Image</span>
+                            </div>
+                            <img id="meal-image-preview" style="display:none;width:100%;border-radius:10px;margin-top:0.75rem;max-height:200px;object-fit:cover;" alt="Meal preview"/>
+                        </div>
+
+                        <button class="btn btn-primary btn-block" style="margin-top:1.25rem" onclick="analyzeMeal()">
+                            <i class="fa-solid fa-droplet"></i> Analyze Meal
+                        </button>
                     </div>
 
                     <div class="glass-card form-section">
@@ -630,6 +634,7 @@
                             <span class="slider-round"></span>
                         </label>
                     </div>
+                    <button class="logout-btn" style="margin-top:1rem;width:100%;" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Log out</button>
                 </div>
             </div>
         </section>
