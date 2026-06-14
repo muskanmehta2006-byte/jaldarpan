@@ -3,7 +3,11 @@ const SUPABASE_URL = "https://kmdsdrvvpbennilcinxl.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_DpqBWRsDSMR3LLh3xO-djQ_1uU_crgE";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+// ── BACKEND API ──
+const API_BASE = "http://localhost:8000"; // TODO: change to Render URL before deploy
+
 let currentUserId = null;
+let mealImageBase64 = null; // stores uploaded meal image for /analyze
 
 // Hardcoded mock friends for leaderboard (real friend system out of scope)
 const MOCK_FRIENDS = [
@@ -27,7 +31,7 @@ function renderResult(data, foodName) {
         <div class="result-card">
 
             <div class="result-header">
-                <h2>${data.display_name.toUpperCase()}</h2>
+                <h2>${data.matched_food.toUpperCase()}</h2>
                 <div class="water-number">
                     ${data.water_liters}
                     <span>L</span>
@@ -68,7 +72,7 @@ function renderResult(data, foodName) {
 async function lookup() {
     const food = document.getElementById("meal-text").value;
 
-    const response = await fetch("http://localhost:8000/lookup", {
+    const response = await fetch("${API_BASE}/lookup", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -107,7 +111,7 @@ async function scan(file) {
         try {
             const base64 = e.target.result.split(",")[1];
 
-            const response = await fetch("http://localhost:8000/scan", {
+            const response = await fetch("${API_BASE}/scan", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -145,6 +149,160 @@ async function handleImageUpload(event) {
     await scan(file);
 }
 
+
+// ── MEAL ANALYZE ──
+
+function switchMealMode(mode) {
+    document.getElementById('meal-mode-text').style.display = mode === 'text' ? 'block' : 'none';
+    document.getElementById('meal-mode-image').style.display = mode === 'image' ? 'block' : 'none';
+    document.getElementById('btn-mode-text').classList.toggle('active', mode === 'text');
+    document.getElementById('btn-mode-image').classList.toggle('active', mode === 'image');
+    mealImageBase64 = null;
+}
+
+function addMealRow() {
+    const list = document.getElementById('meal-items-list');
+    const row = document.createElement('div');
+    row.className = 'meal-item-row';
+    row.innerHTML = `
+        <input type="text" placeholder="Food item (e.g. Dal)" class="meal-item-name"/>
+        <input type="text" placeholder="Qty (e.g. 1 bowl)" class="meal-item-qty"/>
+        <button class="meal-row-remove" onclick="removeMealRow(this)" title="Remove">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    `;
+    list.appendChild(row);
+}
+
+function removeMealRow(btn) {
+    const list = document.getElementById('meal-items-list');
+    if (list.children.length <= 1) return; // keep at least one row
+    btn.closest('.meal-item-row').remove();
+}
+
+function handleMealImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const base64 = e.target.result.split(',')[1];
+        mealImageBase64 = base64;
+
+        const preview = document.getElementById('meal-image-preview');
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+        document.getElementById('upload-status').textContent = file.name;
+    };
+    reader.readAsDataURL(file);
+}
+
+function renderMealAnalysisResult(data) {
+    const resultsPanel = document.getElementById('result');
+    if (!resultsPanel) return;
+
+    const itemsHTML = (data.items || []).map(item => `
+        <div class="meal-result-item">
+            <div>
+                <span class="item-name">${item.name}</span>
+                <span class="item-qty"> · ${item.quantity}</span>
+            </div>
+            <span class="item-litres">${item.litres}L</span>
+        </div>
+    `).join('');
+
+    resultsPanel.innerHTML = `
+        <div class="result-header">
+            <h3>Meal Analysis <span class="estimated-badge">AI Estimated</span></h3>
+            <div class="water-number">${data.total_litres}<span>L</span></div>
+            <p style="color:var(--text-muted);font-size:0.85rem">total water footprint</p>
+        </div>
+        <div class="breakdown-grid" style="margin:16px 0">
+            <div class="stat-card">
+                <div style="font-size:1.4rem;font-weight:700;color:#4ade80">${data.green}L</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">🌿 Green</div>
+            </div>
+            <div class="stat-card">
+                <div style="font-size:1.4rem;font-weight:700;color:#38bdf8">${data.blue}L</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">💧 Blue</div>
+            </div>
+            <div class="stat-card">
+                <div style="font-size:1.4rem;font-weight:700;color:#94a3b8">${data.grey}L</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">🌫️ Grey</div>
+            </div>
+        </div>
+        <div class="meal-result-items">${itemsHTML}</div>
+        ${data.summary ? `<div class="meal-result-summary">${data.summary}</div>` : ''}
+    `;
+}
+
+async function analyzeMeal() {
+    const isImageMode = document.getElementById('meal-mode-image').style.display !== 'none';
+
+    let body;
+    if (isImageMode) {
+        if (!mealImageBase64) {
+            alert('Please upload a meal image first.');
+            return;
+        }
+        body = { image_base64: mealImageBase64 };
+    } else {
+        const rows = document.querySelectorAll('#meal-items-list .meal-item-row');
+        const items = [];
+        rows.forEach(row => {
+            const name = row.querySelector('.meal-item-name').value.trim();
+            const quantity = row.querySelector('.meal-item-qty').value.trim();
+            if (name) items.push({ name, quantity: quantity || '1 serving' });
+        });
+        if (items.length === 0) {
+            alert('Please add at least one food item.');
+            return;
+        }
+        body = { items };
+    }
+
+    // Show loading state
+    const btn = document.querySelector('[onclick="analyzeMeal()"]');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_BASE}/analyze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+            alert('Analysis failed: ' + (data.message || 'Unknown error'));
+            return;
+        }
+
+        // Render result
+        renderMealAnalysisResult(data);
+
+        // Save to activity_logs + award XP + bump streak
+        const litres = Math.round(data.total_litres || 0);
+        appState.userProfile.todayWaterLogged += litres;
+        appState.userProfile.xp += 30;
+        bumpStreak();
+        await syncProfile();
+        await logActivity('meal_scan', litres, 30, {
+            source: isImageMode ? 'image' : 'text',
+            items: JSON.parse(JSON.stringify(data.items || []))
+        });
+        updateUIRefreshes();
+
+    } catch (err) {
+        console.error('Analyze error:', err);
+        alert('Could not reach the backend. Make sure the server is running.');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
 
 // ── EVENTS ──
 
@@ -754,7 +912,7 @@ async function quickLog(amount, title) {
     appState.userProfile.xp += 10; // Fixed incentive base configuration values
     bumpStreak();
     await syncProfile();
-    await logActivity('quick_log', amount, 10, { title: title });
+    await logActivity('quick_log', Math.round(amount), 10, { title: title });
     updateUIRefreshes();
     alert(`Interaction matrix initialized: ${title}. Allocated +10 XP baseline standard.`);
 }
@@ -845,7 +1003,7 @@ async function calculateFootprint() {
     appState.userProfile.xp += 30; // Award transactional execution points
     bumpStreak();
     await syncProfile();
-    await logActivity('footprint_calc', totalImpactCalculated, 30, { meal: mealVal });
+    await logActivity('footprint_calc', Math.round(totalImpactCalculated), 30, { meal: mealVal });
     updateUIRefreshes();
 }
 
